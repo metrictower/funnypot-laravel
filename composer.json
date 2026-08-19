@@ -1,0 +1,46 @@
+{
+    "name": "metrictower/funnypot-laravel",
+    "description": "Thin Laravel adapter (piece E) over the funnypot-policy decision engine: normalise the request, ask the PolicyEngine, execute the Decision (allow / log / block / deceive). Owns no decision logic.",
+    "type": "library",
+    "license": "proprietary",
+    "keywords": ["laravel", "honeypot", "deception", "security", "funnypot"],
+    "require": {
+        "php": ">=8.1",
+        "illuminate/support": "^10.0 || ^11.0 || ^12.0",
+        "illuminate/http": "^10.0 || ^11.0 || ^12.0",
+        "illuminate/console": "^10.0 || ^11.0 || ^12.0",
+        "metrictower/funnypot-policy": "@dev",
+        "metrictower/funnypot-core": "@dev",
+        "metrictower/mainnet-client": "@dev"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0 || ^9.0 || ^10.0"
+    },
+    "repositories": [
+        { "type": "path", "url": "../funnypot-core" },
+        { "type": "path", "url": "../funnypot-policy" },
+        { "type": "path", "url": "../mainnet-client" }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "Funnypot\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Funnypot\\Laravel\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Funnypot\\Laravel\\FunnypotServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
