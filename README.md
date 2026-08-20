@@ -1,5 +1,13 @@
 # metrictower/funnypot-laravel
 
+> **Not sure you're in the right place?**
+> - Want a ready-to-run **honeypot box** to deploy → [funnypot](https://github.com/metrictower/funnypot)
+> - Protecting a **Laravel** app → funnypot-laravel **← you are here**
+> - Protecting a **WordPress** site → [funnypot-wordpress](https://github.com/metrictower/funnypot-wordpress)
+> - Embedding the deception/detection **engine** in your own PHP / PSR-15 app → [funnypot-core](https://github.com/metrictower/funnypot-core)
+> - Querying / reporting to the **IP-reputation service** from code (the SDK) → [funnypot-mainnet-client](https://github.com/metrictower/funnypot-mainnet-client)
+> - Building on the low-level **decision/policy engine** → [funnypot-policy](https://github.com/metrictower/funnypot-policy)
+
 A first-class Laravel package (piece **E**) that drops the funnypot deception stack into any Laravel app
 as a **thin adapter over [`metrictower/funnypot-policy`](../funnypot-policy)** — the position-blind
 decision engine. This package owns **no** decision logic: it normalises the request, asks the
@@ -30,22 +38,13 @@ pieces:
 
 ## Install
 
-E consumes the three sibling packages via composer `path` repositories (already declared in
-`composer.json`):
-
-```json
-"repositories": [
-  { "type": "path", "url": "../funnypot-core" },
-  { "type": "path", "url": "../funnypot-policy" },
-  { "type": "path", "url": "../mainnet-client" }
-]
-```
-
 ```bash
-composer install
+composer require metrictower/funnypot-laravel
 ```
 
-The service provider is auto-discovered (`extra.laravel.providers`). Publish the config:
+This pulls the three sibling packages E adapts — `funnypot-core`, `funnypot-policy`, and
+`funnypot-mainnet-client`. The service provider is auto-discovered (`extra.laravel.providers`).
+Publish the config:
 
 ```bash
 php artisan vendor:publish --tag=funnypot-config

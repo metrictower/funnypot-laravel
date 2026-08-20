@@ -9,18 +9,13 @@
         "illuminate/support": "^10.0 || ^11.0 || ^12.0",
         "illuminate/http": "^10.0 || ^11.0 || ^12.0",
         "illuminate/console": "^10.0 || ^11.0 || ^12.0",
-        "metrictower/funnypot-policy": "@dev",
-        "metrictower/funnypot-core": "@dev",
-        "metrictower/funnypot-mainnet-client": "@dev"
+        "metrictower/funnypot-policy": "~0.0.1",
+        "metrictower/funnypot-core": "~0.0.1",
+        "metrictower/funnypot-mainnet-client": "~0.0.1"
     },
     "require-dev": {
         "orchestra/testbench": "^8.0 || ^9.0 || ^10.0"
     },
-    "repositories": [
-        { "type": "path", "url": "../funnypot-core" },
-        { "type": "path", "url": "../funnypot-policy" },
-        { "type": "path", "url": "../funnypot-mainnet-client" }
-    ],
     "minimum-stability": "dev",
     "prefer-stable": true,
     "autoload": {
