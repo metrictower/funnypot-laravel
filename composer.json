@@ -1,6 +1,6 @@
 {
     "name": "metrictower/funnypot-laravel",
-    "description": "Thin Laravel adapter (piece E) over the funnypot-policy decision engine: normalise the request, ask the PolicyEngine, execute the Decision (allow / log / block / deceive). Owns no decision logic.",
+    "description": "Laravel adapter for funnypot: normalise the request, ask the funnypot-policy decision engine, execute the Decision (allow / log / block / deceive). Owns no decision logic.",
     "type": "library",
     "license": "proprietary",
     "keywords": [
