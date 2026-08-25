@@ -38,10 +38,19 @@ final class CoreEvaluator implements EvaluatorInterface
 
     public function classify(RequestEvidence $request, PolicySiteProfile $profile): PolicyVerdict
     {
-        $coreVerdict = $this->engine->classify(
-            $this->toCoreContext($request),
-            $this->toCoreProfile($profile)
-        );
+        // Same reasoning as synthesize(): a classify fault must not become Decision::allow.
+        // A clean verdict is the safe degradation — the request is simply not deceived.
+        try {
+            $coreVerdict = $this->engine->classify(
+                $this->toCoreContext($request),
+                $this->toCoreProfile($profile)
+            );
+        } catch (\Throwable $e) {
+            return new PolicyVerdict(
+                PolicyVerdict::CLEAN, false, '', 0, PolicyVerdict::SEVERITY_LOW,
+                $profile->routeExists($request->path()), null, ''
+            );
+        }
 
         return $this->toPolicyVerdict($coreVerdict, $request, $profile);
     }
@@ -50,7 +59,15 @@ final class CoreEvaluator implements EvaluatorInterface
     {
         $handle = self::decodeHandle($verdict->engineHandle());
         if ($handle !== null) {
-            $built = $this->engine->synthesizeFromHandle($handle, $this->toCoreProfile($profile), $seed);
+            // A render fault MUST NOT escape this method. PolicyEngine::evaluate() wraps the whole
+            // ladder in `catch (\Throwable) { return Decision::allow('failsafe') }`, so an exception
+            // here does not degrade the deception — it turns a `deceive` into an `allow` and passes
+            // the attack request straight through to the real application. Fail closed, not open.
+            try {
+                $built = $this->engine->synthesizeFromHandle($handle, $this->toCoreProfile($profile), $seed);
+            } catch (\Throwable $e) {
+                $built = null;
+            }
             if ($built instanceof SynthesizedResponse) {
                 return $this->toFakeResponse($built);
             }
