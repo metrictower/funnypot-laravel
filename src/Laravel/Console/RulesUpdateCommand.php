@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Funnypot\Laravel\Console;
 
-use Funnypot\Rules\RulesUpdater;
+use Funnypot\Core\Rules\RulesUpdater;
 use Illuminate\Console\Command;
 
 /**

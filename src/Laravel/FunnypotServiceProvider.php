@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Funnypot\Laravel;
 
-use Funnypot\Config as CoreConfig;
-use Funnypot\Honeypot;
+use Funnypot\Core\Config as CoreConfig;
+use Funnypot\Core\Honeypot;
 use Funnypot\Laravel\Console\MirrorSyncCommand;
 use Funnypot\Laravel\Console\ReportDrainCommand;
 use Funnypot\Laravel\Console\RulesUpdateCommand;
@@ -26,7 +26,7 @@ use Funnypot\Policy\Port\ReputationInterface;
 use Funnypot\Policy\Port\StateStoreInterface;
 use Funnypot\Policy\PolicyConfig;
 use Funnypot\Policy\PolicyEngine;
-use Funnypot\Rules\RulesLocator;
+use Funnypot\Core\Rules\RulesLocator;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;

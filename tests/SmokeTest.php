@@ -15,7 +15,7 @@ final class SmokeTest extends TestCase
     public function test_policy_and_core_and_mainnet_classes_autoload(): void
     {
         $this->assertTrue(class_exists(\Funnypot\Policy\PolicyEngine::class));
-        $this->assertTrue(class_exists(\Funnypot\Honeypot::class));
+        $this->assertTrue(class_exists(\Funnypot\Core\Honeypot::class));
         $this->assertTrue(class_exists(\Funnypot\Mainnet\Client::class));
     }
 }

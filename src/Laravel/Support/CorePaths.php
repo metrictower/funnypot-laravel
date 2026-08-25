@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Funnypot\Laravel\Support;
 
-use Funnypot\Honeypot;
+use Funnypot\Core\Honeypot;
 
 /**
  * Resolve funnypot-core's install path from E (the `bin/funnypot` compiler + `resources/` live in core,

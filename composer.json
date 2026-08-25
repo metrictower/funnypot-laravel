@@ -21,7 +21,7 @@
         "illuminate/routing": "^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0",
         "illuminate/support": "^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0",
         "metrictower/funnypot-policy": ">=0.0.1 <1.0",
-        "metrictower/funnypot-core": "^0.2",
+        "metrictower/funnypot-core": "^0.3",
         "metrictower/funnypot-mainnet-client": ">=0.0.1 <1.0"
     },
     "require-dev": {

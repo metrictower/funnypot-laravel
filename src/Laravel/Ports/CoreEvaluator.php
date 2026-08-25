@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Funnypot\Laravel\Ports;
 
-use Funnypot\Contracts\Evaluator as CoreEvaluatorContract;
+use Funnypot\Core\Contracts\Evaluator as CoreEvaluatorContract;
 use Funnypot\Policy\BotSignals;
 use Funnypot\Policy\FakeResponse;
 use Funnypot\Policy\Port\EvaluatorInterface;
 use Funnypot\Policy\RequestEvidence;
 use Funnypot\Policy\SiteProfile as PolicySiteProfile;
 use Funnypot\Policy\Verdict as PolicyVerdict;
-use Funnypot\RequestContext;
-use Funnypot\SiteProfile as CoreSiteProfile;
-use Funnypot\SynthesizedResponse;
-use Funnypot\Verdict as CoreVerdict;
+use Funnypot\Core\RequestContext;
+use Funnypot\Core\SiteProfile as CoreSiteProfile;
+use Funnypot\Core\SynthesizedResponse;
+use Funnypot\Core\Verdict as CoreVerdict;
 
 /**
- * The engine port: bridges funnypot-core's two-phase `Funnypot\Contracts\Evaluator`
+ * The engine port: bridges funnypot-core's two-phase `Funnypot\Core\Contracts\Evaluator`
  * (classify()/synthesize(), in core-namespace types) to the policy's `Port\EvaluatorInterface`
  * (policy-namespace types). E injects core's engine; it invents no policy.
  *
