@@ -128,7 +128,7 @@ testable, auto-discovered package.
   never runs on the request path.
 - **No** octane/swoole-specific singleton-reset handling in v1 beyond documenting that the engine +
   its ports are stateless-per-request (fast-follow if a stale-state bug surfaces under Octane).
-- **No** dependency on the funnypot *app* (`metrictower/funnypot`). E depends on `funnypot-policy`
+- **No** dependency on the funnypot *app* (`metrictower/funnypot-app`). E depends on `funnypot-policy`
   (and core for the commands). The reporter is F's `Funnypot\Mainnet\Reporter` behind a Laravel queue,
   not a re-export of the app's `Funnypot\App\ThreatIntel\AbuseIpdb`.
 - **No** publishing of persona/template corpora from this package — those ship inside core.
