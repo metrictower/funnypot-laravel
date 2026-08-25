@@ -7,6 +7,7 @@ namespace Funnypot\Laravel\Reporting;
 use Funnypot\Laravel\Jobs\SendMainnetReport;
 use Funnypot\Laravel\SensorId;
 use Funnypot\Policy\ReportIntent;
+use Illuminate\Contracts\Bus\Dispatcher as BusDispatcher;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Log;
 
@@ -27,7 +28,8 @@ final class ReportDispatcher
     public function __construct(
         private Repository $cache,
         private LocalReportQueue $localQueue,
-        private SensorId $sensorId
+        private SensorId $sensorId,
+        private BusDispatcher $bus
     ) {
     }
 
@@ -52,8 +54,13 @@ final class ReportDispatcher
             return;
         }
 
-        SendMainnetReport::dispatch($row['ip'], $row['categories'], $row['sensor_id'])
-            ->onQueue(config('funnypot.reporting.queue'));
+        // Dispatched through the Bus contract rather than the Dispatchable trait: that trait lives in
+        // illuminate/foundation, which is not a usable split package, so depending on it would force
+        // the whole laravel/framework into a package that only needs the bus.
+        $this->bus->dispatch(
+            (new SendMainnetReport($row['ip'], $row['categories'], $row['sensor_id']))
+                ->onQueue(config('funnypot.reporting.queue'))
+        );
     }
 
     private function enabled(): bool

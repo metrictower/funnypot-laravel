@@ -12,7 +12,7 @@ E is a **thin Laravel adapter** over it: request normalization, `Decision` execu
 that produces the policy config array.
 **Consumes (transitive, via funnypot-policy):** `metrictower/funnypot-core` (the two-phase
 `classify()`+`synthesize()` deception engine — M2, held behind the policy's `EvaluatorInterface`) ·
-`metrictower/mainnet-client` (F's `ReputationGate`/`Client::check` behind the policy's
+`metrictower/funnypot-mainnet-client` (F's `ReputationGate`/`Client::check` behind the policy's
 `ReputationInterface`, plus the relocated `Funnypot\Mainnet\Reporter`, née piece B). The
 reputation-check/block feature is now a **policy action/config**, not bespoke E logic (decision M).
 
@@ -844,7 +844,7 @@ ports.
 - **C coordination** — E's core-trim deletes core's `src/Laravel/*`, so piece C excludes those files
   from its 7.3 conversion scope; extraction-vs-conversion ordering called out so the bridge is handled
   once.
-- **F (mainnet-client + reputation check)** — E depended on `metrictower/mainnet-client` transitively
+- **F (mainnet-client + reputation check)** — E depended on `metrictower/funnypot-mainnet-client` transitively
   via core and added an OPTIONAL, off-by-default reputation check + block feature (verdict-first
   `block_verdicts` + optional `min_block_score`, replacing the deleted score `block_threshold`;
   `challenge_verdicts` defaults `[]`). **Superseded by decision M (see below):** the reputation-block

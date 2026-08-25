@@ -112,7 +112,8 @@ final class FunnypotServiceProvider extends ServiceProvider
         $this->app->singleton(ReportDispatcher::class, static fn ($app) => new ReportDispatcher(
             $app->make('funnypot.cache'),
             $app->make(LocalReportQueue::class),
-            $app->make(SensorId::class)
+            $app->make(SensorId::class),
+            $app->make(\Illuminate\Contracts\Bus\Dispatcher::class)
         ));
     }
 
