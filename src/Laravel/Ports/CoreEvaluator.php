@@ -11,6 +11,7 @@ use Funnypot\Policy\Port\EvaluatorInterface;
 use Funnypot\Policy\RequestEvidence;
 use Funnypot\Policy\SiteProfile as PolicySiteProfile;
 use Funnypot\Policy\Verdict as PolicyVerdict;
+use Funnypot\Core\FakeHandle;
 use Funnypot\Core\RequestContext;
 use Funnypot\Core\SiteProfile as CoreSiteProfile;
 use Funnypot\Core\SynthesizedResponse;
@@ -21,20 +22,18 @@ use Funnypot\Core\Verdict as CoreVerdict;
  * (classify()/synthesize(), in core-namespace types) to the policy's `Port\EvaluatorInterface`
  * (policy-namespace types). E injects core's engine; it invents no policy.
  *
- * classify() and synthesize() are called on the SAME policy Verdict instance within one request, so a
- * WeakMap memo carries the rich core Verdict (with its fakeHandle) from classify to synthesize — core
- * builds the byte-exact fake. The policy's own synthetic probe verdicts (pin/sacrificial/country
- * replay) miss the memo and degrade to a minimal, deterministic upgrade-of-a-404 fake, never a 500
- * (invariant 2).
+ * Core's classify() and synthesize() are two phases, and the policy's Verdict cannot hold a core
+ * object — so the core FakeHandle rides across the boundary as the policy Verdict's opaque
+ * engineHandle (a serialized FakeHandle) and comes back via synthesizeFromHandle(). No memo, no
+ * second classify(), and nothing here is PHP-8-only, so the same code serves a 7.3 WordPress host.
+ *
+ * The policy's own synthetic probe verdicts (pin / sacrificial / country replay) carry no handle and
+ * degrade to a minimal, deterministic upgrade-of-a-404 fake — never a 500 (invariant 2).
  */
 final class CoreEvaluator implements EvaluatorInterface
 {
-    /** @var \WeakMap<PolicyVerdict,CoreVerdict> classify()->synthesize() memo, per policy Verdict */
-    private \WeakMap $memo;
-
     public function __construct(private CoreEvaluatorContract $engine)
     {
-        $this->memo = new \WeakMap();
     }
 
     public function classify(RequestEvidence $request, PolicySiteProfile $profile): PolicyVerdict
@@ -44,17 +43,14 @@ final class CoreEvaluator implements EvaluatorInterface
             $this->toCoreProfile($profile)
         );
 
-        $policyVerdict = $this->toPolicyVerdict($coreVerdict, $request, $profile);
-        $this->memo[$policyVerdict] = $coreVerdict;
-
-        return $policyVerdict;
+        return $this->toPolicyVerdict($coreVerdict, $request, $profile);
     }
 
     public function synthesize(PolicyVerdict $verdict, PolicySiteProfile $profile, string $seed): FakeResponse
     {
-        $coreVerdict = $this->memo[$verdict] ?? null;
-        if ($coreVerdict !== null) {
-            $built = $this->engine->synthesize($coreVerdict, $this->toCoreProfile($profile), $seed);
+        $handle = self::decodeHandle($verdict->engineHandle());
+        if ($handle !== null) {
+            $built = $this->engine->synthesizeFromHandle($handle, $this->toCoreProfile($profile), $seed);
             if ($built instanceof SynthesizedResponse) {
                 return $this->toFakeResponse($built);
             }
@@ -100,8 +96,26 @@ final class CoreEvaluator implements EvaluatorInterface
             $v->anomaly,
             $this->severity($v->severity),
             $profile->routeExists($e->path()),
-            $this->botSignals($v)
+            $this->botSignals($v),
+            self::encodeHandle($v->fakeHandle)
         );
+    }
+
+    /** Flatten core's opaque FakeHandle so the policy Verdict can carry it as bytes. */
+    private static function encodeHandle(?FakeHandle $handle): string
+    {
+        return $handle === null ? '' : (string) json_encode($handle->toArray());
+    }
+
+    /** Rebuild it on the far side. Anything malformed degrades to null, never an exception. */
+    private static function decodeHandle(string $encoded): ?FakeHandle
+    {
+        if ($encoded === '') {
+            return null;
+        }
+        $data = json_decode($encoded, true);
+
+        return is_array($data) && isset($data['kind']) ? FakeHandle::fromArray($data) : null;
     }
 
     private function classification(string $core): string
