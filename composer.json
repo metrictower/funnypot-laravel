@@ -32,7 +32,7 @@
     "prefer-stable": true,
     "autoload": {
         "psr-4": {
-            "Funnypot\\": "src/"
+            "Funnypot\\Laravel\\": "src/Laravel/"
         }
     },
     "autoload-dev": {
