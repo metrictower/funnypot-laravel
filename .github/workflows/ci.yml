@@ -1,0 +1,113 @@
+name: CI
+
+# This package had no CI at all, which is how it drifted: illuminate/bus, queue, routing, contracts
+# and guzzlehttp/guzzle were all used and undeclared, resolving only because orchestra/testbench
+# dragged the whole framework in as a dev dependency. Nothing ever installed it the way a consumer
+# would, so nothing noticed. Hence the `consumer` job below — it is the one that would have caught it.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The declared floor and the current top, so the supported range is actually exercised
+        # rather than asserted. Laravel 8 is the floor because the package is used from a Laravel 8
+        # app; testbench 6 is its matching harness.
+        include:
+          - php: '8.0'
+            laravel: '^8.0'
+            testbench: '^6.0'
+          - php: '8.1'
+            laravel: '^9.0'
+            testbench: '^7.0'
+          - php: '8.2'
+            laravel: '^10.0'
+            testbench: '^8.0'
+          - php: '8.3'
+            laravel: '^11.0'
+            testbench: '^9.0'
+          - php: '8.4'
+            laravel: '^12.0'
+            testbench: '^10.0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: ctype, json, filter, curl
+          coverage: none
+
+      - name: Lint
+        run: find src tests -name '*.php' -print0 | xargs -0 -n1 -P4 php -l >/dev/null
+
+      - name: Validate composer.json
+        run: composer validate --no-check-publish
+
+      # composer.lock is gitignored (library convention), and config.platform.php pins the floor, so
+      # remove the pin when testing a higher lane or the higher framework will not resolve.
+      - name: Resolve for this lane
+        run: |
+          composer config --unset platform.php
+          composer require --no-update --dev "orchestra/testbench:${{ matrix.testbench }}"
+          composer require --no-update "illuminate/support:${{ matrix.laravel }}"
+          composer update --no-interaction --prefer-dist --no-progress
+
+      - name: PHPUnit
+        run: php vendor/bin/phpunit
+
+      - name: No namespace collisions across installed family packages
+        run: php vendor/metrictower/funnypot-core/scripts/ci/check-namespace-collisions.php .
+
+  consumer:
+    name: Installs as a dependency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: pkg
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: ctype, json, filter, curl
+          coverage: none
+
+      # Install into a scratch app with NO dev dependencies. This is the shape that catches an
+      # undeclared runtime dep: in-repo, require-dev quietly supplies the whole framework.
+      - name: Require from a scratch app
+        run: |
+          mkdir app && cd app
+          composer init --no-interaction --name=test/consumer --stability=dev
+          composer config repositories.pkg path ../pkg
+          composer require --no-interaction --prefer-dist --no-dev "metrictower/funnypot-laravel:*"
+
+      - name: Every class the package ships must autoload with no dev deps present
+        run: |
+          cd app
+          php -r '
+            require "vendor/autoload.php";
+            $base = "vendor/metrictower/funnypot-laravel/src/Laravel";
+            $rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($base));
+            $fail = 0;
+            foreach ($rii as $f) {
+              if ($f->getExtension() !== "php") { continue; }
+              $src = file_get_contents($f->getPathname());
+              if (!preg_match("/^namespace\s+([^;]+);/m", $src, $ns)) { continue; }
+              if (!preg_match("/^\s*(?:final\s+|abstract\s+)?(?:class|interface|trait)\s+(\w+)/m", $src, $c)) { continue; }
+              $fqcn = trim($ns[1]) . "\\" . $c[1];
+              if (!class_exists($fqcn) && !interface_exists($fqcn) && !trait_exists($fqcn)) {
+                fwrite(STDERR, "cannot autoload: $fqcn\n"); $fail = 1;
+              }
+            }
+            exit($fail);
+          '
