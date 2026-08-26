@@ -182,12 +182,17 @@ final class CoreEvaluator implements EvaluatorInterface
     private function uaClass(string $core): string
     {
         // The UA-class vocabularies match by value across core/policy; map defensively.
+        // Closed whitelist with a LOSSY default: every class core learns must be added here, or a
+        // Laravel host silently sees UA_UNKNOWN where core said something more specific.
+        // good-bot is written out rather than named: BotSignals mirrors the constant only on
+        // untagged policy, and referencing it would fatal on the 0.2 releases installed today.
         return match ($core) {
-            'browser' => BotSignals::UA_BROWSER,
-            'script'  => BotSignals::UA_SCRIPT,
-            'scanner' => BotSignals::UA_SCANNER,
-            'empty'   => BotSignals::UA_EMPTY,
-            default   => BotSignals::UA_UNKNOWN,
+            'browser'  => BotSignals::UA_BROWSER,
+            'script'   => BotSignals::UA_SCRIPT,
+            'scanner'  => BotSignals::UA_SCANNER,
+            'good-bot' => 'good-bot',
+            'empty'    => BotSignals::UA_EMPTY,
+            default    => BotSignals::UA_UNKNOWN,
         };
     }
 
