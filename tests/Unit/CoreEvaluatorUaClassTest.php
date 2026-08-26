@@ -64,26 +64,52 @@ final class CoreEvaluatorUaClassTest extends TestCase
         return new CoreEvaluator($engine);
     }
 
+    /**
+     * Derived from core by reflection, NOT listed here: a hard-coded list cannot fail when core
+     * gains a class, which is the whole mechanism this test exists to catch.
+     *
+     * The UA_* constants cover two different things — the coarse UA classes, and signal flags like
+     * UA_CLAIMS_BROWSER_NO_HINTS. The classes are told apart by their VALUE: a flag's value is
+     * itself `ua_`-prefixed, a class's is not.
+     *
+     * @return array<string,string> constant name => wire value
+     */
+    private function coreUaClasses(): array
+    {
+        $classes = [];
+        foreach ((new \ReflectionClass(BotSignalSet::class))->getConstants() as $name => $value) {
+            if (strpos($name, 'UA_') === 0 && is_string($value) && strpos($value, 'ua_') !== 0) {
+                $classes[$name] = $value;
+            }
+        }
+
+        return $classes;
+    }
+
     public function test_every_core_ua_class_crosses_the_boundary_unchanged(): void
     {
-        // Wire values on the left: the classes core emits, named as strings so this test does not
-        // depend on which release of core and policy happens to be installed.
-        $expected = [
-            'browser' => BotSignals::UA_BROWSER,
-            'script' => BotSignals::UA_SCRIPT,
-            'scanner' => BotSignals::UA_SCANNER,
-            'good-bot' => 'good-bot',
-            'empty' => BotSignals::UA_EMPTY,
-            'unknown' => BotSignals::UA_UNKNOWN,
-        ];
+        $classes = $this->coreUaClasses();
+
+        // Guard the guard: if the filter ever matches nothing, every assertion below would pass
+        // vacuously and the boundary would be unprotected while the suite stayed green.
+        self::assertGreaterThanOrEqual(6, count($classes), 'reflection found too few UA classes in core — the filter is wrong');
+        self::assertContains('good-bot', $classes, 'core must still expose the good-bot class');
 
         $evidence = new RequestEvidence('GET', '/', [], [], [], '203.0.113.5');
         $profile = new SiteProfile('unknown', [], []);
 
-        foreach ($expected as $core => $policy) {
-            $verdict = $this->evaluatorReturning($core)->classify($evidence, $profile);
+        foreach ($classes as $name => $wire) {
+            $got = $this->evaluatorReturning($wire)->classify($evidence, $profile)->botSignals()->uaClass();
 
-            self::assertSame($policy, $verdict->botSignals()->uaClass(), $core . ' must not be downgraded');
+            // The mapper's default is UA_UNKNOWN, so a class it does not know is silently
+            // downgraded rather than erroring. Only 'unknown' itself may map to unknown.
+            self::assertSame(
+                $wire,
+                $got,
+                BotSignalSet::class . '::' . $name . " ('" . $wire . "') was downgraded to '" . $got
+                    . "' crossing the boundary — add it to CoreEvaluator::uaClass()"
+            );
         }
     }
+
 }
