@@ -46,7 +46,8 @@ $fail = static function (string $why): void {
     exit(1);
 };
 
-// The Http facade is all SendMainnetReport::handle() resolves from the container.
+// The Http facade is all SendMainnetReport::handle() resolves from the container. Http's facade accessor
+// is Factory::class, so binding the factory under that key is exactly what Http::fake()/post() resolve.
 $app = new Container();
 Container::setInstance($app);
 $app->singleton(HttpFactory::class, static fn () => new HttpFactory());

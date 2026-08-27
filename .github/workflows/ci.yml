@@ -85,15 +85,17 @@ jobs:
           extensions: ctype, json, filter, curl
           coverage: none
 
-      # Install into a scratch app with NO dev dependencies, pinned to the Laravel 8 floor. This is the
-      # shape that catches an undeclared runtime dep: in-repo, require-dev quietly supplies the whole
-      # framework, and a newer framework quietly supplies guzzle.
+      # Install the package as a DEPENDENCY of a scratch app, pinned to the Laravel 8 floor. This is the
+      # shape that catches an undeclared runtime dep: composer never installs a dependency's require-dev,
+      # so the framework that require-dev (orchestra/testbench) quietly supplies in-repo is absent here,
+      # and the floor keeps illuminate/http from supplying guzzle itself. (`require` has no --no-dev flag;
+      # it is unneeded — a required package brings only its own `require`, never its `require-dev`.)
       - name: Require from a scratch app
         run: |
           mkdir app && cd app
           composer init --no-interaction --name=test/consumer --stability=dev
           composer config repositories.pkg path ../pkg
-          composer require --no-interaction --prefer-dist --no-dev "illuminate/support:^8.0" "metrictower/funnypot-laravel:*"
+          composer require --no-interaction --prefer-dist "illuminate/support:^8.0" "metrictower/funnypot-laravel:*"
 
       - name: Every class the package ships must autoload with no dev deps present
         run: |
