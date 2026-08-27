@@ -112,9 +112,17 @@ fires in **every** mode when the engine judged the request malicious — `observ
 ## Detection only — for apps that own their response
 
 An app that already owns its response (its own 404 handler, honeypot, or WAF) calls detection directly.
-`use Funnypot\Laravel\Facades\Funnypot;` and pick a tier:
+`use Funnypot\Laravel\Facades\Funnypot;` and pick a tier.
 
-**One line — detect and respond:**
+> **This facade is caller-decides — it is NOT governed by the `enforcement` config.** `enforcement.before`
+> / `enforcement.not_found` (enforce / observe / off) gate the *installed* `HoneypotMiddleware` and
+> `FallbackResponder` — the positions funnypot owns. When YOU call the facade from your own handler, YOU
+> pick the mode: `handleRequest()`/`toResponse()` are the **enforce** action (funnypot serves the fake/block);
+> for **observe** (detect + report, but serve your own response) use `inspectRequest()` and act on
+> `isSuspicious()` yourself without calling `toResponse()`. `handleRequest()` will serve regardless of any
+> `enforcement.*` value — so do not wire it into a position you are shadow-testing in `observe`.
+
+**One line — detect and respond (enforce):**
 ```php
 return Funnypot::handleRequest($request) ?? $myOwn404;
 ```
