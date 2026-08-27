@@ -171,7 +171,7 @@ final class FunnypotServiceProvider extends ServiceProvider
     {
         return new CoreConfig(
             mode: 'respond',
-            responseStyle: (string) ($c['response_style'] ?? 'minimal'),
+            responseStyle: (string) ($c['response_style'] ?? 'realistic'),
             severityCeiling: (string) ($c['severity_ceiling'] ?? 'high'),
             maxBodyBytes: (int) ($c['max_body_bytes'] ?? 65536),
             latencyMs: (int) ($c['latency_ms'] ?? 0),

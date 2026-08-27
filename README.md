@@ -148,7 +148,9 @@ commented; the load-bearing knobs:
   adapter performs the decision or only watches + reports it (see *Enforcement modes* above). Defaults
   `before=observe`, `not_found=enforce`. Env: `FUNNYPOT_ENFORCE_BEFORE`, `FUNNYPOT_ENFORCE_NOT_FOUND`,
   `FUNNYPOT_ENFORCE_LOG_LEVEL`.
-- **`response_style`** — `minimal | realistic | taunt` (how a fake *looks*; passed into core).
+- **`response_style`** — `realistic` (default) `| minimal | taunt` (how a fake *looks*; passed into core).
+  `realistic` renders a believable, template-matching fake (e.g. a phpMyAdmin skin); `minimal` is a bland
+  generic body.
 - **`mainnet.base_url` / `MAINNET_KEY`** — the reputation/report service. `base_url` is **host only**
   (the reporter appends `/v1/report`). An empty key makes the reporter, the reputation check, and
   mirror-sync all **inert**. Defaults to the mainnet placeholder host, never AbuseIPDB.

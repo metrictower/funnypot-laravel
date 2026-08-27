@@ -14,7 +14,7 @@ return [
     // --------------------------------------------------------------------------------------------
     // STYLE — how a fake LOOKS (synthesis config passed straight into core via the evaluator).
     // --------------------------------------------------------------------------------------------
-    'response_style'  => env('FUNNYPOT_STYLE', 'minimal'), // minimal | realistic | taunt
+    'response_style'  => env('FUNNYPOT_STYLE', 'realistic'), // minimal | realistic | taunt
     'persona_seed'    => env('FUNNYPOT_PERSONA_SEED', null),
     'persona_breadth' => env('FUNNYPOT_PERSONA_BREADTH', 'coherent'),
     'severity_ceiling' => env('FUNNYPOT_SEVERITY_CEILING', 'high'),
