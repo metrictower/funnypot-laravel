@@ -34,4 +34,13 @@ final class EnforcementTest extends TestCase
         self::assertSame(Enforcement::OBSERVE, Enforcement::normalize(''));
         self::assertSame(Enforcement::OBSERVE, Enforcement::normalize(null));
     }
+
+    public function test_is_valid_recognises_only_the_three_modes(): void
+    {
+        self::assertTrue(Enforcement::isValid('off'));
+        self::assertTrue(Enforcement::isValid('observe'));
+        self::assertTrue(Enforcement::isValid('enforce'));
+        self::assertFalse(Enforcement::isValid('block'));
+        self::assertFalse(Enforcement::isValid(''));
+    }
 }

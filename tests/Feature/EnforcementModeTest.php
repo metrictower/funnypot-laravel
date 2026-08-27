@@ -172,4 +172,37 @@ final class EnforcementModeTest extends TestCase
         self::assertSame($returned, $request->attributes->get(HoneypotMiddleware::ATTRIBUTE_DECISION));
         Queue::assertPushed(SendMainnetReport::class, 1);
     }
+
+    public function test_before_observe_still_logs_a_log_band_decision_at_info(): void
+    {
+        // A LOG-band ("suspicious, below block") decision must stay visible under observe — it is the
+        // band an operator running observe most wants to see. It was logged under enforce; observe kept it.
+        config(['funnypot.enforcement.before' => Enforcement::OBSERVE]);
+        $handler = new TestHandler();
+        Log::channel('funnypot')->getLogger()->pushHandler($handler);
+        $this->app->instance(Engine::class, ScriptedEngine::returning(Decision::log('shadow')));
+        $this->guardedRoute();
+
+        $this->get('/guarded')->assertOk()->assertSee('REAL APP:shadow');
+        self::assertTrue($handler->hasInfoRecords(), 'a LOG-band decision is still logged under observe');
+        self::assertFalse($handler->hasWarningRecords(), 'a LOG-band decision is not a withheld enforcement');
+    }
+
+    public function test_not_found_enforce_serves_the_block(): void
+    {
+        config(['funnypot.enforcement.not_found' => Enforcement::ENFORCE]);
+        $this->app->instance(Engine::class, ScriptedEngine::returning(Decision::block(403, 'blocklist')));
+        Route::fallback([FallbackResponder::class, 'handle']);
+
+        $this->get('/nope')->assertStatus(403);
+    }
+
+    public function test_not_found_fault_fails_open_to_a_plain_404_never_a_500(): void
+    {
+        config(['funnypot.enforcement.not_found' => Enforcement::ENFORCE]);
+        $this->app->instance(Engine::class, ScriptedEngine::throwing());
+        Route::fallback([FallbackResponder::class, 'handle']);
+
+        $this->get('/nope')->assertNotFound();
+    }
 }

@@ -28,6 +28,11 @@ final class Enforcement
         return [self::OFF, self::OBSERVE, self::ENFORCE];
     }
 
+    public static function isValid(string $v): bool
+    {
+        return in_array($v, self::values(), true);
+    }
+
     /**
      * Coerce a config value to a known mode. Anything unrecognised — a typo, an empty string, a
      * non-string — becomes OBSERVE, the safe mode, never ENFORCE.
@@ -38,6 +43,6 @@ final class Enforcement
     {
         $v = is_string($value) ? $value : '';
 
-        return in_array($v, self::values(), true) ? $v : self::OBSERVE;
+        return self::isValid($v) ? $v : self::OBSERVE;
     }
 }

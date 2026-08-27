@@ -14,8 +14,9 @@ use Illuminate\Http\Request;
  * per the `enforcement.before` mode, whether to PERFORM the Decision or OBSERVE it:
  *
  *  - off     → pass straight through, never evaluate (a per-position kill switch)
- *  - observe → detect + report (in Inspector), log a withheld block/deceive, then $next — the app responds
- *  - enforce → allow/log → $next; block → honest refusal; deceive → core's byte-exact fake (short-circuit)
+ *  - observe → detect + report (in Inspector), keep LOG-band visibility, log a withheld block/deceive,
+ *              then $next — the app owns the response
+ *  - enforce → allow → $next; log → record + $next; block → honest refusal; deceive → core's fake
  *
  * FAIL-SAFE (invariant 2): any fault degrades to $next — never a 500, never a spurious block.
  */
@@ -43,8 +44,14 @@ final class HoneypotMiddleware
                 return $next($request); // fail open
             }
 
+            // LOG-band telemetry fires in enforce AND observe — a below-block "suspicious" decision never
+            // carried a response, so observe must not also swallow its visibility.
+            if ($decision->action() === Decision::LOG) {
+                EnforcementLog::suspicious($this->logger, $decision);
+            }
+
             if ($mode === Enforcement::OBSERVE) {
-                $this->logWithheld($this->logger, $decision);
+                EnforcementLog::withheld($this->logger, $decision);
 
                 return $next($request);
             }
@@ -66,28 +73,10 @@ final class HoneypotMiddleware
             case Decision::BLOCK:
                 return $this->responder->block($decision->status() ?? 403);
 
-            case Decision::LOG:
-                $this->logger->log('info', 'funnypot', ['reason' => $decision->reason()]);
-
-                return $next($request);
-
+            case Decision::LOG:   // already recorded in handle()
             case Decision::ALLOW:
             default:
                 return $next($request);
-        }
-    }
-
-    /**
-     * OBSERVE logging, shared with FallbackResponder: a withheld block/deceive is worth an operator's
-     * eyes (the engine judged it malicious and we only watched). allow/log carry no withheld action.
-     * The action name + the closed-set reason label are both fingerprint-safe (policy §10).
-     */
-    public static function logWithheld(LaravelLogger $logger, Decision $decision): void
-    {
-        $action = $decision->action();
-        if ($action === Decision::DECEIVE || $action === Decision::BLOCK) {
-            $level = (string) config('funnypot.enforcement_log_level', 'warning');
-            $logger->log($level, 'funnypot observe: ' . $action, ['reason' => $decision->reason()]);
         }
     }
 }

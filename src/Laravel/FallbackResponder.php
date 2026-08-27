@@ -44,7 +44,7 @@ final class FallbackResponder
             }
 
             if ($mode === Enforcement::OBSERVE) {
-                HoneypotMiddleware::logWithheld($this->logger, $decision);
+                EnforcementLog::withheld($this->logger, $decision);
 
                 return $this->notFound();
             }
