@@ -122,7 +122,10 @@ final class FunnypotServiceProvider extends ServiceProvider
             $app->make(Engine::class),
             $app->make(ReportDispatcher::class)
         ));
-        $this->app->singleton(Funnypot::class, static fn ($app) => new Funnypot($app->make(Inspector::class)));
+        $this->app->singleton(Funnypot::class, static fn ($app) => new Funnypot(
+            $app->make(Inspector::class),
+            $app->make(LaravelResponseMapper::class)
+        ));
     }
 
     public function boot(): void

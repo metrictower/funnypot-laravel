@@ -109,21 +109,32 @@ fires in **every** mode when the engine judged the request malicious — `observ
 *response*, never the report. A withheld block/deceive is logged at `enforcement_log_level` (default
 `warning`).
 
-## Detection only — `Funnypot::inspect()`
+## Detection only — for apps that own their response
 
-An app that already owns its response (its own 404 handler, honeypot, or WAF) can call detection
-directly and keep full control of what it serves:
+An app that already owns its response (its own 404 handler, honeypot, or WAF) calls detection directly.
+`use Funnypot\Laravel\Facades\Funnypot;` and pick a tier:
 
+**One line — detect and respond:**
 ```php
-$decision = app(\Funnypot\Laravel\Funnypot::class)->inspect($request); // classifies + reports, serves nothing
-if ($decision !== null && in_array($decision->action(), [\Funnypot\Policy\Decision::DECEIVE, \Funnypot\Policy\Decision::BLOCK], true)) {
-    // your call — serve your own decoy, log, score, ban…
+return Funnypot::handleRequest($request) ?? $myOwn404;
+```
+Returns funnypot's byte-exact fake (deceive) or an honest block for a probe, and `null` when the request
+is clean (you serve your own). In Laravel you **RETURN** it — never `die()`. (`handleRequest($request, $die = true)`
+echoes+exits, for raw-PHP entry points with no framework to return into.)
+
+**Or take control with the result:**
+```php
+$result = Funnypot::inspectRequest($request);
+if ($result->isSuspicious()) {
+    return $result->toResponse();   // funnypot's fake / block, or null if nothing to serve
 }
+// $result->action(), $result->reason(), $result->decision() are there when you need them
 ```
 
-`inspect()` returns the `Decision` (also stashed on the `funnypot.decision` request attribute), or
-`null` on a detection fault — treat `null` as "no opinion", never "clean". It never serves a response
-and never throws onto the request path.
+`inspectRequest()` never serves a response and never throws onto the request path. A clean/allow verdict
+or a detection fault is `isClean()` with a `null` `toResponse()` — treat "clean" as "no opinion", never a
+guarantee the request is safe. (The raw `Funnypot::inspect($request): ?Decision` is still available for
+callers wired to the policy object directly.)
 
 ## Configuration (highlights)
 
