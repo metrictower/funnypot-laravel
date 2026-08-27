@@ -75,21 +75,25 @@ jobs:
         with:
           path: pkg
 
+      # The floor, on purpose. From Laravel ~10 illuminate/http declares guzzle itself, which would mask
+      # an undeclared guzzle in this package; on the Laravel 8 floor it does not, so the report smoke below
+      # can only pass because THIS package declares guzzle. This is also the real consumer's shape.
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.0'
           extensions: ctype, json, filter, curl
           coverage: none
 
-      # Install into a scratch app with NO dev dependencies. This is the shape that catches an
-      # undeclared runtime dep: in-repo, require-dev quietly supplies the whole framework.
+      # Install into a scratch app with NO dev dependencies, pinned to the Laravel 8 floor. This is the
+      # shape that catches an undeclared runtime dep: in-repo, require-dev quietly supplies the whole
+      # framework, and a newer framework quietly supplies guzzle.
       - name: Require from a scratch app
         run: |
           mkdir app && cd app
           composer init --no-interaction --name=test/consumer --stability=dev
           composer config repositories.pkg path ../pkg
-          composer require --no-interaction --prefer-dist --no-dev "metrictower/funnypot-laravel:*"
+          composer require --no-interaction --prefer-dist --no-dev "illuminate/support:^8.0" "metrictower/funnypot-laravel:*"
 
       - name: Every class the package ships must autoload with no dev deps present
         run: |
@@ -111,3 +115,13 @@ jobs:
             }
             exit($fail);
           '
+
+      # The class sweep above cannot see guzzle: the package reaches it only through the Http facade
+      # inside method bodies, so no GuzzleHttp FQCN is ever autoloaded. This EXECUTES the real report
+      # path against Http::fake() — which still builds a Guzzle handler stack — so a missing guzzle from
+      # `require` fails here. Discriminating: remove guzzlehttp/guzzle from require and this step goes red
+      # with `Class "GuzzleHttp\HandlerStack" not found`, while the sweep stays green.
+      - name: Exercise a Guzzle-backed report path (proves guzzle is a declared runtime dep)
+        run: |
+          cd app
+          php -r 'require "vendor/autoload.php"; require "vendor/metrictower/funnypot-laravel/tests/consumer/report_smoke.php";'
