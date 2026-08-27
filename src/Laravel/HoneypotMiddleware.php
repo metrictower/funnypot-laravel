@@ -5,34 +5,27 @@ declare(strict_types=1);
 namespace Funnypot\Laravel;
 
 use Closure;
-use Funnypot\Laravel\Contracts\Engine;
 use Funnypot\Laravel\Ports\LaravelLogger;
-use Funnypot\Laravel\Reporting\ReportDispatcher;
 use Funnypot\Policy\Decision;
 use Illuminate\Http\Request;
 
 /**
- * BEFORE-position Decision executor (design §4.2): normalize → evaluate → execute. Owns no decision
- * logic — it asks the policy engine and performs the effect the returned Decision names.
+ * BEFORE-position executor (design §4.2). Detection is delegated to Inspector; this class only decides,
+ * per the `enforcement.before` mode, whether to PERFORM the Decision or OBSERVE it:
  *
- *  - allow → $next($request) (byte-identical to today's request path)
- *  - log   → record the (non-sensitive) reason, then $next($request)
- *  - block → an honest empty refusal at the app-chosen status (protect-mode only, invariant 5)
- *  - deceive → core's byte-exact fake, short-circuited (Content-Type matches the request)
- *  - report? → enqueue delivery (the policy already applied suppression)
+ *  - off     → pass straight through, never evaluate (a per-position kill switch)
+ *  - observe → detect + report (in Inspector), log a withheld block/deceive, then $next — the app responds
+ *  - enforce → allow/log → $next; block → honest refusal; deceive → core's byte-exact fake (short-circuit)
  *
- * FAIL-SAFE (invariant 2): any thrown fault degrades to $next($request) — never a 500, never a spurious
- * block. A 500 is itself a tell. The engine is already fail-open; this try/catch is belt-and-suspenders.
+ * FAIL-SAFE (invariant 2): any fault degrades to $next — never a 500, never a spurious block.
  */
 final class HoneypotMiddleware
 {
     public const ATTRIBUTE_DECISION = 'funnypot.decision';
 
     public function __construct(
-        private LaravelRequestMapper $mapper,
-        private Engine $engine,
+        private Inspector $inspector,
         private LaravelResponseMapper $responder,
-        private ReportDispatcher $reports,
         private LaravelLogger $logger
     ) {
     }
@@ -40,28 +33,35 @@ final class HoneypotMiddleware
     public function handle(Request $request, Closure $next): mixed
     {
         try {
-            $normalized = $this->mapper->map($request);
-            $decision = $this->engine->evaluate($normalized);
-            $request->attributes->set(self::ATTRIBUTE_DECISION, $decision);
+            $mode = Enforcement::normalize(config('funnypot.enforcement.before', Enforcement::OBSERVE));
+            if ($mode === Enforcement::OFF) {
+                return $next($request);
+            }
 
-            $this->maybeReport($decision);
+            $decision = $this->inspector->inspect($request);
+            if ($decision === null) {
+                return $next($request); // fail open
+            }
 
-            return $this->execute($decision, $request, $next);
+            if ($mode === Enforcement::OBSERVE) {
+                $this->logWithheld($this->logger, $decision);
+
+                return $next($request);
+            }
+
+            return $this->enforce($decision, $request, $next);
         } catch (\Throwable $ignored) {
-            return $next($request); // fail open — never a 500, never a spurious block
+            return $next($request); // belt-and-suspenders: a responder fault must not become a 500
         }
     }
 
-    private function execute(Decision $decision, Request $request, Closure $next): mixed
+    private function enforce(Decision $decision, Request $request, Closure $next): mixed
     {
         switch ($decision->action()) {
             case Decision::DECEIVE:
                 $fake = $decision->fakeHandle();
-                if ($fake === null) {
-                    return $next($request); // no fake to serve → degrade to the app (never a 500)
-                }
 
-                return $this->responder->fake($fake);
+                return $fake === null ? $next($request) : $this->responder->fake($fake);
 
             case Decision::BLOCK:
                 return $this->responder->block($decision->status() ?? 403);
@@ -77,11 +77,17 @@ final class HoneypotMiddleware
         }
     }
 
-    private function maybeReport(Decision $decision): void
+    /**
+     * OBSERVE logging, shared with FallbackResponder: a withheld block/deceive is worth an operator's
+     * eyes (the engine judged it malicious and we only watched). allow/log carry no withheld action.
+     * The action name + the closed-set reason label are both fingerprint-safe (policy §10).
+     */
+    public static function logWithheld(LaravelLogger $logger, Decision $decision): void
     {
-        $report = $decision->report();
-        if ($report !== null) {
-            $this->reports->dispatch($report);
+        $action = $decision->action();
+        if ($action === Decision::DECEIVE || $action === Decision::BLOCK) {
+            $level = (string) config('funnypot.enforcement_log_level', 'warning');
+            $logger->log($level, 'funnypot observe: ' . $action, ['reason' => $decision->reason()]);
         }
     }
 }

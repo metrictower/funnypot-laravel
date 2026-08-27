@@ -115,6 +115,14 @@ final class FunnypotServiceProvider extends ServiceProvider
             $app->make(SensorId::class),
             $app->make(\Illuminate\Contracts\Bus\Dispatcher::class)
         ));
+
+        // --- FP-0118: the shared detection head + the detection facade for response-owning apps ---
+        $this->app->singleton(Inspector::class, static fn ($app) => new Inspector(
+            $app->make(LaravelRequestMapper::class),
+            $app->make(Engine::class),
+            $app->make(ReportDispatcher::class)
+        ));
+        $this->app->singleton(Funnypot::class, static fn ($app) => new Funnypot($app->make(Inspector::class)));
     }
 
     public function boot(): void

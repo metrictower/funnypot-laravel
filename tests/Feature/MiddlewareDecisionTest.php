@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Funnypot\Laravel\Tests\Feature;
 
 use Funnypot\Laravel\Contracts\Engine;
+use Funnypot\Laravel\Enforcement;
 use Funnypot\Laravel\HoneypotMiddleware;
 use Funnypot\Laravel\Tests\Support\ScriptedEngine;
 use Funnypot\Laravel\Tests\TestCase;
@@ -21,6 +22,8 @@ final class MiddlewareDecisionTest extends TestCase
 {
     private function route(): void
     {
+        // This suite pins the ENFORCE executor mapping; the before position now defaults to OBSERVE.
+        config(['funnypot.enforcement.before' => Enforcement::ENFORCE]);
         Route::middleware('funnypot')->get('/guarded', function (Request $r) {
             $decision = $r->attributes->get(HoneypotMiddleware::ATTRIBUTE_DECISION);
 

@@ -40,11 +40,26 @@ return [
     // --------------------------------------------------------------------------------------------
     'posture'  => env('FUNNYPOT_POSTURE', 'honeypot'), // honeypot | WAF | both (preset selector)
     // Position knobs OVERRIDE the posture preset per field. null (unset) = inherit the preset, so
-    // choosing a posture is enough (honeypot → fallback; WAF → before; both → both).
+    // choosing a posture is enough (honeypot → not_found; WAF → before; both → both). `not_found` is the
+    // 404 position (was `fallback`); it maps to the policy's fallback position at the adapter boundary.
     'position' => [
-        'before'   => (($v = env('FUNNYPOT_POSITION_BEFORE')) === null || $v === '') ? null : (bool) $v,
-        'fallback' => (($v = env('FUNNYPOT_POSITION_FALLBACK')) === null || $v === '') ? null : (bool) $v,
+        'before'    => (($v = env('FUNNYPOT_POSITION_BEFORE')) === null || $v === '') ? null : (bool) $v,
+        'not_found' => (($v = env('FUNNYPOT_POSITION_NOT_FOUND')) === null || $v === '') ? null : (bool) $v,
     ],
+
+    // ENFORCEMENT — adapter-layer, per position: does the executor PERFORM the engine's decision or
+    // merely OBSERVE it. Orthogonal to `position` (which decides whether the engine evaluates at all).
+    //   off     — short-circuit; never evaluate (a per-position kill switch)
+    //   observe — detect + report + log the withheld action, then pass through; the app owns the response
+    //   enforce — serve the fake / the block
+    // Safe-by-default: `before` OBSERVEs (watch real traffic, never block on install); `not_found`
+    // ENFORCEs (deceiving a 404 has no real-user downside). See Funnypot\Laravel\Enforcement.
+    'enforcement' => [
+        'before'    => env('FUNNYPOT_ENFORCE_BEFORE', \Funnypot\Laravel\Enforcement::OBSERVE),
+        'not_found' => env('FUNNYPOT_ENFORCE_NOT_FOUND', \Funnypot\Laravel\Enforcement::ENFORCE),
+    ],
+    // Log level for an OBSERVE-withheld block/deceive (the engine judged it malicious; we watched).
+    'enforcement_log_level' => env('FUNNYPOT_ENFORCE_LOG_LEVEL', 'warning'),
     // Per-band action ceiling on REAL routes (policy §5 ladder). Sacrificial / 404-counterfactual paths
     // are governed by the day-1 carve-out and always may deceive.
     'actions' => [

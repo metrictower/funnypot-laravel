@@ -80,8 +80,9 @@ final class PolicyConfigFactory
         if (array_key_exists('before', $pos) && $pos['before'] !== null) {
             $preset['before'] = (bool) $pos['before'];
         }
-        if (array_key_exists('fallback', $pos) && $pos['fallback'] !== null) {
-            $preset['fallback'] = (bool) $pos['fallback'];
+        // Adapter boundary: E's config names the 404 position `not_found`; the policy position is `fallback`.
+        if (array_key_exists('not_found', $pos) && $pos['not_found'] !== null) {
+            $preset['fallback'] = (bool) $pos['not_found'];
         }
 
         return $preset;

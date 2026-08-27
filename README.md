@@ -61,8 +61,8 @@ Add a `funnypot` log channel to `config/logging.php`:
 
 The package does **not** force itself into the kernel — the app opts in.
 
-**FALLBACK position (the default honeypot 404 hook).** Wire the responder as your fallback route (add it
-last, after your real routes), in `routes/web.php`:
+**NOT_FOUND position (the default honeypot 404 hook).** Wire the responder as your fallback route (add
+it last, after your real routes), in `routes/web.php`:
 
 ```php
 use Funnypot\Laravel\FallbackResponder;
@@ -83,15 +83,60 @@ stack. In `bootstrap/app.php` (Laravel 11+):
 })
 ```
 
-Which positions are active is a **config choice** (`posture`), never a code change.
+Which positions the *engine evaluates* is a **config choice** (`posture`), never a code change.
+
+## Enforcement modes (enforce / observe / off)
+
+Independently of whether a position is active, `enforcement` decides — per position — whether the
+adapter **performs** funnypot's decision or merely **watches** it. Values (`Funnypot\Laravel\Enforcement`):
+
+| mode | behaviour when the executor runs |
+|---|---|
+| `enforce` | serve the fake / the block (the response-owning behaviour) |
+| `observe` | detect **+ report** + log the withheld action, then pass through — *your app* owns the response |
+| `off` | short-circuit; never evaluate (a per-position kill switch) |
+
+```php
+'enforcement' => [
+    'before'    => Funnypot\Laravel\Enforcement::OBSERVE,  // default: watch real traffic, never block on install
+    'not_found' => Funnypot\Laravel\Enforcement::ENFORCE,  // default: deceive 404s (no real-user downside)
+],
+```
+
+Defaults are **safe-by-default**: a fresh install watches + logs on the before position and never
+silently starts blocking real traffic (ModSecurity `DetectionOnly` / AWS WAF "Count first"). Reporting
+fires in **every** mode when the engine judged the request malicious — `observe` withholds only the
+*response*, never the report. A withheld block/deceive is logged at `enforcement_log_level` (default
+`warning`).
+
+## Detection only — `Funnypot::inspect()`
+
+An app that already owns its response (its own 404 handler, honeypot, or WAF) can call detection
+directly and keep full control of what it serves:
+
+```php
+$decision = app(\Funnypot\Laravel\Funnypot::class)->inspect($request); // classifies + reports, serves nothing
+if ($decision !== null && in_array($decision->action(), [\Funnypot\Policy\Decision::DECEIVE, \Funnypot\Policy\Decision::BLOCK], true)) {
+    // your call — serve your own decoy, log, score, ban…
+}
+```
+
+`inspect()` returns the `Decision` (also stashed on the `funnypot.decision` request attribute), or
+`null` on a detection fault — treat `null` as "no opinion", never "clean". It never serves a response
+and never throws onto the request path.
 
 ## Configuration (highlights)
 
 `config/funnypot.php` is a Laravel front-end that produces the policy config array. The full file is
 commented; the load-bearing knobs:
 
-- **`posture`** — `honeypot` (fallback deceive, default) · `WAF` (before-position block) · `both`. The
-  posture selects the active `position`s; a `FUNNYPOT_POSITION_*` env overrides per field.
+- **`posture`** — `honeypot` (not_found deceive, default) · `WAF` (before-position block) · `both`. The
+  posture selects which `position`s the engine evaluates; a `FUNNYPOT_POSITION_*` env overrides per
+  field (`FUNNYPOT_POSITION_BEFORE`, `FUNNYPOT_POSITION_NOT_FOUND`).
+- **`enforcement`** — per position (`before`, `not_found`): `enforce` · `observe` · `off`. Whether the
+  adapter performs the decision or only watches + reports it (see *Enforcement modes* above). Defaults
+  `before=observe`, `not_found=enforce`. Env: `FUNNYPOT_ENFORCE_BEFORE`, `FUNNYPOT_ENFORCE_NOT_FOUND`,
+  `FUNNYPOT_ENFORCE_LOG_LEVEL`.
 - **`response_style`** — `minimal | realistic | taunt` (how a fake *looks*; passed into core).
 - **`mainnet.base_url` / `MAINNET_KEY`** — the reputation/report service. `base_url` is **host only**
   (the reporter appends `/v1/report`). An empty key makes the reporter, the reputation check, and
